@@ -1,12 +1,13 @@
 #include <iostream>
+#include <fstream>
 #include <math.h>
 #include <vector>
 #include <bitset>
 #include <array>
 
 #include "simulate.h"
-
-
+#include "landscape.h"
+#include "analyze_data.h"
 
 //Function for printing the population at the end.
 template<typename K, typename V>
@@ -22,7 +23,7 @@ int main() {
 	const int seq_length = 10;
 	const int haplotypes = pow(2, seq_length);
 	const int generations = 500;
-	const int pop_size = 10000;
+	const int pop_size = 100000;
 	const double mutation_rate = 1e-5;
 
 	//Consider using the cppitertools package? Consider using char instead of string?
@@ -42,22 +43,40 @@ int main() {
 	// Create unordered hash tables for population and fitness for each haplotype
 	robin_hood::unordered_node_map<std::string, int> pop;
 	robin_hood::unordered_node_map<std::string, double> fitness;
+	robin_hood::unordered_node_map<std::string, double> fitness_drug;
 
 	pop.insert({base_haplotype, pop_size});
 
-	std::vector<double> A_ls(haplotypes, 1.0);
+	// Create the neutral landscape.
+	std::vector<double> neutral_ls(haplotypes, 1.0);
 
+	// Insert the neutral fitness landscape values into the fitness map for simulation.
 	for (int i = 0; i < haplotypes; i++) {
-		fitness.insert({haplotype_binaries.at(i), A_ls.at(i)});
+		fitness.insert({haplotype_binaries.at(i), neutral_ls.at(i)});
 	}
 
-	//figure out history later
+	// Simulates the Wright-Fisher evolution
 	simulate(pop, generations, mutation_rate, pop_size, seq_length, fitness, alphabet);
 
+	// Print final evolved population
+	// print_map(pop);
 
-	//print_map(pop);
+	// Create and normalize the drug fitness landscape
+	std::vector<double> drug_landscape = create_landscape(seq_length, 1);
+	drug_landscape = normalize_landscape(drug_landscape);
 
-	std::cout << pop.size() << std::endl;
+	// Insert the drug fitness landscape values into the fitness_drug map for analysis.
+	for (int i = 0; i < haplotypes; i++) {
+		fitness_drug.insert({ haplotype_binaries.at(i), drug_landscape.at(i) });
+	}
+
+	// Create container and calculate "evolvability"
+	std::vector<double> evolvability;
+	evolvability.push_back(calculate_evolvability(pop, haplotype_binaries, fitness_drug));
+	
+	std::cout << "Evolvability is: " << evolvability.at(0) << std::endl;
+
+
 
 	return 0;
 }
